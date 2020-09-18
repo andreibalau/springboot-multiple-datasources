@@ -5,8 +5,7 @@ import java.util.HashMap;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
@@ -17,39 +16,47 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-// basePackageClasses -> is scanning the package of the classes not the class itself, take care !!!
 @EnableJpaRepositories(basePackages = "com.test.multipledatasources.repository.forest", entityManagerFactoryRef = "forestEntityManagerFactory", transactionManagerRef = "forestTransactionManager")
 public class ForestDataSourceConfiguration {
 
-    @Bean
-    @ConfigurationProperties("forest.datasource")
-    public DataSourceProperties forestDataSourceProperties() {
-        return new DataSourceProperties();
-    }
+    @Value("${forest.datasource.url}")
+    private String url;
+    @Value("${forest.datasource.driver-class-name}")
+    private String driverClassName;
+    @Value("${forest.datasource.username}")
+    private String username;
+    @Value("${forest.datasource.password}")
+    private String password;
 
-    @Bean
-    @ConfigurationProperties("forest.datasource")
+    @Value("${forest.hibernate.dialect}")
+    private String hibernateDialect;
+    @Value("${forest.hibernate.hbm2ddl.auto}")
+    private String hibernateHbm2ddl;
+    @Value("${forest.hibernate.show_sql}")
+    private String hibernateShowSQL;
+    @Value("${forest.hibernate.format_sql}")
+    private String hibernateFormatSQL;
+    @Value("${forest.hibernate.use_sql_comments}")
+    private String hibernateSQLComments;
+
+    @Bean(name = "forestDataSource")
     public DataSource forestDataSource() {
-        return DataSourceBuilder.create().driverClassName(forestDataSourceProperties().getDriverClassName())
-                .url(forestDataSourceProperties().getUrl()).username(forestDataSourceProperties().getUsername())
-                .password(forestDataSourceProperties().getPassword()).build();
+        return DataSourceBuilder.create().driverClassName(driverClassName).url(url).username(username)
+                .password(password).build();
     }
 
     @Bean(name = "forestEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean forestEntityManagerFactory(EntityManagerFactoryBuilder builder) {
         HashMap<String, String> props = new HashMap<>();
-        props.put("hibernate.dialect", "org.hibernate.dialect.H2Dialect");// FIXME: the hibernat.h2,jpa and so on
-                                                                          // settings are not scaned !!! use props,
-                                                                          // without these props the tables are not
-                                                                          // created !!!
-        props.put("hibernate.show_sql", "true");
-        props.put("hibernate.hbm2ddl.auto", "update");
-        props.put("hibernate.format_sql", "true");
+        props.put("hibernate.dialect", hibernateDialect);
+        props.put("hibernate.show_sql", hibernateShowSQL);
+        props.put("hibernate.hbm2ddl.auto", hibernateHbm2ddl);
+        props.put("hibernate.format_sql", hibernateFormatSQL);
         return builder.dataSource(forestDataSource()).persistenceUnit("forest-database").properties(props)
                 .packages("com.test.multipledatasources.model.forest").build();
     }
 
-    @Bean
+    @Bean(name = "forestTransactionManager")
     public PlatformTransactionManager forestTransactionManager(
             final @Qualifier("forestEntityManagerFactory") LocalContainerEntityManagerFactoryBean forestEntityManagerFactory) {
         return new JpaTransactionManager(forestEntityManagerFactory.getObject());

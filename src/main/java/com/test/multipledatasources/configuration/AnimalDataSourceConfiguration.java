@@ -5,8 +5,7 @@ import java.util.HashMap;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
@@ -18,43 +17,50 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-// basePackageClasses -> is scanning the package of the classes not the class itself, take care !!!
 @EnableJpaRepositories(basePackages = "com.test.multipledatasources.repository.animal", entityManagerFactoryRef = "animalEntityManagerFactory", transactionManagerRef = "animalTransactionManager")
 public class AnimalDataSourceConfiguration {
 
-    @Bean
-    @Primary
-    @ConfigurationProperties("animal.datasource")
-    public DataSourceProperties animalDataSourceProperties() {
-        return new DataSourceProperties();
-    }
+    @Value("${animal.datasource.url}")
+    private String url;
+    @Value("${animal.datasource.driver-class-name}")
+    private String driverClassName;
+    @Value("${animal.datasource.username}")
+    private String username;
+    @Value("${animal.datasource.password}")
+    private String password;
 
-    @Bean
+    @Value("${animal.hibernate.dialect}")
+    private String hibernateDialect;
+    @Value("${animal.hibernate.hbm2ddl.auto}")
+    private String hibernateHbm2ddl;
+    @Value("${animal.hibernate.show_sql}")
+    private String hibernateShowSQL;
+    @Value("${animal.hibernate.format_sql}")
+    private String hibernateFormatSQL;
+    @Value("${animal.hibernate.use_sql_comments}")
+    private String hibernateSQLComments;
+
     @Primary
-    @ConfigurationProperties("animal.datasource")
+    @Bean(name = "animalDataSource")
     public DataSource animalDataSource() {
-        return DataSourceBuilder.create().driverClassName(animalDataSourceProperties().getDriverClassName())
-                .url(animalDataSourceProperties().getUrl()).username(animalDataSourceProperties().getUsername())
-                .password(animalDataSourceProperties().getPassword()).build();
+        return DataSourceBuilder.create().driverClassName(driverClassName).url(url).username(username)
+                .password(password).build();
     }
 
     @Primary
     @Bean(name = "animalEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean animalEntityManagerFactory(EntityManagerFactoryBuilder builder) {
         HashMap<String, String> props = new HashMap<>();
-        props.put("hibernate.dialect", "org.hibernate.dialect.H2Dialect");// FIXME: the hibernat.h2,jpa and so on
-                                                                          // settings are not scaned !!! use
-                                                                          // props,without these props the tables are
-                                                                          // not created !!!
-        props.put("hibernate.show_sql", "true");
-        props.put("hibernate.hbm2ddl.auto", "update");
-        props.put("hibernate.format_sql", "true");
+        props.put("hibernate.dialect", hibernateDialect);
+        props.put("hibernate.show_sql", hibernateShowSQL);
+        props.put("hibernate.hbm2ddl.auto", hibernateHbm2ddl);
+        props.put("hibernate.format_sql", hibernateFormatSQL);
         return builder.dataSource(animalDataSource()).persistenceUnit("animal-database")
                 .packages("com.test.multipledatasources.model.animal").properties(props).build();
     }
 
     @Primary
-    @Bean
+    @Bean(name = "animalTransactionManager")
     public PlatformTransactionManager animalTransactionManager(
             final @Qualifier("animalEntityManagerFactory") LocalContainerEntityManagerFactoryBean animalEntityManagerFactory) {
         return new JpaTransactionManager(animalEntityManagerFactory.getObject());
